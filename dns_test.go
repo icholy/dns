@@ -2,6 +2,7 @@ package dns
 
 import (
 	"bufio"
+	"bytes"
 	"strings"
 	"testing"
 
@@ -23,9 +24,15 @@ func TestHeaderEncodeDecode(t *testing.T) {
 	assert.DeepEqual(t, h, h2)
 }
 
-func TestEncodeQueryName(t *testing.T) {
-	name := EncodeQueryName([]byte("google.com"))
-	assert.DeepEqual(t, string(name), "\x06google\x03com\x00")
+func TestEncodeDecodeQueryName(t *testing.T) {
+	name := []byte("google.com")
+	// encode
+	encoded := EncodeQueryName(name)
+	assert.DeepEqual(t, string(encoded), "\x06google\x03com\x00")
+	// decode
+	decoded, err := DecodeQueryName(bufio.NewReader(bytes.NewReader(encoded)))
+	assert.NilError(t, err)
+	assert.DeepEqual(t, string(decoded), string(name))
 }
 
 func TestQueryEncode(t *testing.T) {

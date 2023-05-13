@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"net"
@@ -55,6 +56,28 @@ func EncodeQueryName(name []byte) []byte {
 	}
 	b = append(b, 0x00)
 	return b
+}
+
+func DecodeQueryName(r *bufio.Reader) ([]byte, error) {
+	part := make([]byte, 255)
+	var name []byte
+	for {
+		b, err := r.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		if b == 0x00 {
+			break
+		}
+		if _, err := io.ReadFull(r, part[:b]); err != nil {
+			return nil, err
+		}
+		if len(name) > 0 {
+			name = append(name, '.')
+		}
+		name = append(name, part[:b]...)
+	}
+	return name, nil
 }
 
 func (q Question) Encode() []byte {
