@@ -100,6 +100,9 @@ func DecodeQueryName(r *bufio.Reader) ([]byte, error) {
 		if b == 0x00 {
 			break
 		}
+		if b&0b1100_0000 != 0 {
+			return nil, fmt.Errorf("compression not implemented")
+		}
 		if _, err := io.ReadFull(r, part[:b]); err != nil {
 			return nil, err
 		}
