@@ -32,3 +32,10 @@ func TestQueryWrite(t *testing.T) {
 	assert.NilError(t, q.Write(&b))
 	assert.DeepEqual(t, string(b.Bytes()), "D\xcb\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x07example\x03com\x00\x00\x01\x00\x01")
 }
+
+func TestSendQuery(t *testing.T) {
+	q := Query{Domain: "google.com", Type: TypeA}
+	ip, err := SendQuery("8.8.8.8:53", q)
+	assert.NilError(t, err)
+	t.Logf("Resolved: %s", ip)
+}

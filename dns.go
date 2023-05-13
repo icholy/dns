@@ -3,7 +3,11 @@ package dns
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
+	"math"
+	"math/rand"
+	"net"
 )
 
 type Header struct {
@@ -81,4 +85,33 @@ func (q Query) Write(w io.Writer) error {
 		Class: ClassIN,
 	}
 	return q2.Write(w)
+}
+
+func SendQuery(addr string, q Query) (string, error) {
+	if q.ID == 0 {
+		q.ID = uint16(rand.Intn(math.MaxUint16))
+	}
+	remote, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return "", err
+	}
+	conn, err := net.DialUDP("udp", nil, remote)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	var msg bytes.Buffer
+	if err := q.Write(&msg); err != nil {
+		return "", err
+	}
+	if _, err := conn.Write(msg.Bytes()); err != nil {
+		return "", err
+	}
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return "", err
+	}
+	fmt.Printf("len=%d %s", n, buf[:n])
+	return "", nil
 }
