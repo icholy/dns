@@ -63,8 +63,8 @@ func (q Question) Encode() []byte {
 	return buf.Bytes()
 }
 
-func (q *Question) Decode(r *bufio.Reader) error {
-	name, err := DecodeName(r)
+func (q *Question) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
+	name, err := DecodeName(r, rs)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func EncodeName(name []byte) []byte {
 	return b
 }
 
-func DecodeName(r *bufio.Reader) ([]byte, error) {
+func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
 	part := make([]byte, 255)
 	var name []byte
 	for {
@@ -155,9 +155,10 @@ func SendQuery(addr string, q Query) (*Packet, error) {
 	if _, err := conn.Write(q.Encode()); err != nil {
 		return nil, err
 	}
-	r := bufio.NewReader(conn)
+	var buf SeekBuffer
+	r := bufio.NewReader(io.TeeReader(conn, &buf))
 	var pkt Packet
-	if err := pkt.Decode(r); err != nil {
+	if err := pkt.Decode(r, &buf); err != nil {
 		return nil, err
 	}
 	return &pkt, nil
@@ -171,8 +172,8 @@ type Record struct {
 	Data  []byte
 }
 
-func (r *Record) Decode(br *bufio.Reader) error {
-	name, err := DecodeName(br)
+func (r *Record) Decode(br *bufio.Reader, rs io.ReadSeeker) error {
+	name, err := DecodeName(br, rs)
 	if err != nil {
 		return err
 	}
@@ -204,34 +205,34 @@ type Packet struct {
 	Additionals []Record
 }
 
-func (p *Packet) Decode(r *bufio.Reader) error {
+func (p *Packet) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
 	if err := p.Header.Decode(r); err != nil {
 		return err
 	}
 	for i := uint16(0); i < p.Header.NumQuestions; i++ {
 		var q Question
-		if err := q.Decode(r); err != nil {
+		if err := q.Decode(r, rs); err != nil {
 			return err
 		}
 		p.Questions = append(p.Questions, q)
 	}
 	for i := uint16(0); i < p.Header.NumAnswers; i++ {
 		var rec Record
-		if err := rec.Decode(r); err != nil {
+		if err := rec.Decode(r, rs); err != nil {
 			return err
 		}
 		p.Answers = append(p.Answers, rec)
 	}
 	for i := uint16(0); i < p.Header.NumAuthorities; i++ {
 		var rec Record
-		if err := rec.Decode(r); err != nil {
+		if err := rec.Decode(r, rs); err != nil {
 			return err
 		}
 		p.Authorities = append(p.Authorities, rec)
 	}
 	for i := uint16(0); i < p.Header.NumAdditionals; i++ {
 		var rec Record
-		if err := rec.Decode(r); err != nil {
+		if err := rec.Decode(r, rs); err != nil {
 			return err
 		}
 		p.Additionals = append(p.Additionals, rec)
@@ -259,4 +260,28 @@ func LookupDomain(addr, domain string) (string, error) {
 		return "", fmt.Errorf("no answers")
 	}
 	return ParseIP(pkt.Answers[0].Data), nil
+}
+
+type SeekBuffer struct {
+	data   []byte
+	offset int64
+}
+
+func (b *SeekBuffer) Seek(offset int64, whence int) (int64, error) {
+	if offset < 0 || offset >= int64(len(b.data)) {
+		return 0, fmt.Errorf("seek offset out of bounds: %d", offset)
+	}
+	b.offset = offset
+	return offset, nil
+}
+
+func (b *SeekBuffer) Read(data []byte) (int, error) {
+	n := copy(data, b.data[b.offset:])
+	b.offset += int64(n)
+	return n, nil
+}
+
+func (b *SeekBuffer) Write(data []byte) (int, error) {
+	b.data = append(b.data, data...)
+	return len(data), nil
 }
