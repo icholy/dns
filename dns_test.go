@@ -45,8 +45,15 @@ func TestQueryEncode(t *testing.T) {
 }
 
 func TestSendQuery(t *testing.T) {
+	t.Skip()
 	q := Query{Domain: "google.com", Type: TypeA}
 	pkt, err := SendQuery("8.8.8.8:53", q)
 	assert.NilError(t, err)
 	t.Logf("Packet: %#v", pkt)
+}
+
+func TestLookupDomain(t *testing.T) {
+	ip, err := LookupDomain("8.8.8.8:53", "google.com")
+	assert.NilError(t, err)
+	t.Logf("IP: %s", ip)
 }

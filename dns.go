@@ -9,6 +9,8 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"strconv"
+	"strings"
 )
 
 type Header struct {
@@ -235,4 +237,26 @@ func (p *Packet) Decode(r *bufio.Reader) error {
 		p.Additionals = append(p.Additionals, rec)
 	}
 	return nil
+}
+
+func ParseIP(data []byte) string {
+	ip := make([]string, len(data))
+	for i, b := range data {
+		ip[i] = strconv.Itoa(int(b))
+	}
+	return strings.Join(ip, ".")
+}
+
+func LookupDomain(addr, domain string) (string, error) {
+	pkt, err := SendQuery(addr, Query{
+		Domain: domain,
+		Type:   TypeA,
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(pkt.Answers) == 0 {
+		return "", fmt.Errorf("no answers")
+	}
+	return ParseIP(pkt.Answers[0].Data), nil
 }
