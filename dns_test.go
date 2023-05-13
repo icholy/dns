@@ -27,10 +27,10 @@ func TestHeaderEncodeDecode(t *testing.T) {
 func TestEncodeDecodeQueryName(t *testing.T) {
 	name := []byte("google.com")
 	// encode
-	encoded := EncodeQueryName(name)
+	encoded := EncodeName(name)
 	assert.DeepEqual(t, string(encoded), "\x06google\x03com\x00")
 	// decode
-	decoded, err := DecodeQueryName(bufio.NewReader(bytes.NewReader(encoded)))
+	decoded, err := DecodeName(bufio.NewReader(bytes.NewReader(encoded)))
 	assert.NilError(t, err)
 	assert.DeepEqual(t, string(decoded), string(name))
 }
@@ -46,7 +46,7 @@ func TestQueryEncode(t *testing.T) {
 
 func TestSendQuery(t *testing.T) {
 	q := Query{Domain: "google.com", Type: TypeA}
-	ip, err := SendQuery("8.8.8.8:53", q)
+	pkt, err := SendQuery("8.8.8.8:53", q)
 	assert.NilError(t, err)
-	t.Logf("Resolved: %s", ip)
+	t.Logf("Packet: %#v", pkt)
 }

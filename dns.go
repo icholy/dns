@@ -9,8 +9,6 @@ import (
 	"math"
 	"math/rand"
 	"net"
-
-	"github.com/sanity-io/litter"
 )
 
 type Header struct {
@@ -139,29 +137,28 @@ func (q Query) Encode() []byte {
 	return buf.Bytes()
 }
 
-func SendQuery(addr string, q Query) (string, error) {
+func SendQuery(addr string, q Query) (*Packet, error) {
 	if q.ID == 0 {
 		q.ID = uint16(rand.Intn(math.MaxUint16))
 	}
 	remote, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	conn, err := net.DialUDP("udp", nil, remote)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer conn.Close()
 	if _, err := conn.Write(q.Encode()); err != nil {
-		return "", err
+		return nil, err
 	}
 	r := bufio.NewReader(conn)
-	var p Packet
-	if err := p.Decode(r); err != nil {
-		return "", err
+	var pkt Packet
+	if err := pkt.Decode(r); err != nil {
+		return nil, err
 	}
-	litter.Dump(p)
-	return "", nil
+	return &pkt, nil
 }
 
 type Record struct {
