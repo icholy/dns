@@ -48,6 +48,37 @@ type Question struct {
 	Class Class
 }
 
+func (q Question) Encode() []byte {
+	var buf bytes.Buffer
+	_, _ = buf.Write(EncodeQueryName(q.Name))
+	_ = binary.Write(&buf, binary.BigEndian, struct {
+		Type  Type
+		Class Class
+	}{
+		Type:  q.Type,
+		Class: q.Class,
+	})
+	return buf.Bytes()
+}
+
+func (q *Question) Decode(r *bufio.Reader) error {
+	name, err := DecodeQueryName(r)
+	if err != nil {
+		return err
+	}
+	var aux struct {
+		Type  Type
+		Class Class
+	}
+	if err := binary.Read(r, binary.BigEndian, &aux); err != nil {
+		return err
+	}
+	q.Name = name
+	q.Type = aux.Type
+	q.Class = aux.Class
+	return nil
+}
+
 func EncodeQueryName(name []byte) []byte {
 	var b []byte
 	for _, part := range bytes.Split(name, []byte(".")) {
@@ -78,19 +109,6 @@ func DecodeQueryName(r *bufio.Reader) ([]byte, error) {
 		name = append(name, part[:b]...)
 	}
 	return name, nil
-}
-
-func (q Question) Encode() []byte {
-	var buf bytes.Buffer
-	_, _ = buf.Write(EncodeQueryName(q.Name))
-	_ = binary.Write(&buf, binary.BigEndian, struct {
-		Type  Type
-		Class Class
-	}{
-		Type:  q.Type,
-		Class: q.Class,
-	})
-	return buf.Bytes()
 }
 
 type Query struct {
