@@ -30,7 +30,7 @@ func TestEncodeDecodeQueryName(t *testing.T) {
 	encoded := EncodeName(name)
 	assert.DeepEqual(t, string(encoded), "\x06google\x03com\x00")
 	// decode
-	decoded, err := DecodeName(bufio.NewReader(bytes.NewReader(encoded)))
+	decoded, err := DecodeName(bufio.NewReader(bytes.NewReader(encoded)), nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, string(decoded), string(name))
 }
@@ -53,7 +53,7 @@ func TestSendQuery(t *testing.T) {
 }
 
 func TestLookupDomain(t *testing.T) {
-	ip, err := LookupDomain("8.8.8.8:53", "choly.ca")
+	ip, err := LookupDomain("8.8.8.8:53", "example.com")
 	assert.NilError(t, err)
 	t.Logf("IP: %s", ip)
 }

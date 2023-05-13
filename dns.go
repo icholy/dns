@@ -91,6 +91,13 @@ func EncodeName(name []byte) []byte {
 	return b
 }
 
+func DecodeCompressedName(r *bufio.Reader, rs io.ReadSeeker, length byte) ([]byte, error) {
+	if rs == nil {
+		return nil, fmt.Errorf("cannot decompress without seeker")
+	}
+	return nil, fmt.Errorf("compression not implemented")
+}
+
 func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
 	part := make([]byte, 255)
 	var name []byte
@@ -103,7 +110,15 @@ func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
 			break
 		}
 		if b&0b1100_0000 != 0 {
-			return nil, fmt.Errorf("compression not implemented")
+			part, err := DecodeCompressedName(r, rs, b)
+			if err != nil {
+				return nil, err
+			}
+			if len(name) > 0 {
+				name = append(name, '.')
+			}
+			name = append(name, part[:b]...)
+			break
 		}
 		if _, err := io.ReadFull(r, part[:b]); err != nil {
 			return nil, err
