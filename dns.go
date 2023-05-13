@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"math/rand"
 	"net"
@@ -19,8 +18,10 @@ type Header struct {
 	NumAdditionals uint16
 }
 
-func (h Header) Write(w io.Writer) error {
-	return binary.Write(w, binary.BigEndian, h)
+func (h Header) Encode() []byte {
+	var buf bytes.Buffer
+	_ = binary.Write(&buf, binary.BigEndian, h)
+	return buf.Bytes()
 }
 
 type Class uint16
@@ -51,17 +52,17 @@ func EncodeQueryName(name []byte) []byte {
 	return b
 }
 
-func (q Question) Write(w io.Writer) error {
-	if _, err := w.Write(EncodeQueryName(q.Name)); err != nil {
-		return err
-	}
-	return binary.Write(w, binary.BigEndian, struct {
+func (q Question) Encode() []byte {
+	var buf bytes.Buffer
+	_, _ = buf.Write(EncodeQueryName(q.Name))
+	_ = binary.Write(&buf, binary.BigEndian, struct {
 		Type  Type
 		Class Class
 	}{
 		Type:  q.Type,
 		Class: q.Class,
 	})
+	return buf.Bytes()
 }
 
 type Query struct {
@@ -70,21 +71,21 @@ type Query struct {
 	Type   Type
 }
 
-func (q Query) Write(w io.Writer) error {
+func (q Query) Encode() []byte {
+	var buf bytes.Buffer
 	h := Header{
 		ID:           q.ID,
 		NumQuestions: 1,
 		Flags:        1 << 8, // RECURSION_DESIRED
 	}
-	if err := h.Write(w); err != nil {
-		return err
-	}
+	buf.Write(h.Encode())
 	q2 := Question{
 		Name:  []byte(q.Domain),
 		Type:  q.Type,
 		Class: ClassIN,
 	}
-	return q2.Write(w)
+	buf.Write(q2.Encode())
+	return buf.Bytes()
 }
 
 func SendQuery(addr string, q Query) (string, error) {
@@ -100,11 +101,7 @@ func SendQuery(addr string, q Query) (string, error) {
 		return "", err
 	}
 	defer conn.Close()
-	var msg bytes.Buffer
-	if err := q.Write(&msg); err != nil {
-		return "", err
-	}
-	if _, err := conn.Write(msg.Bytes()); err != nil {
+	if _, err := conn.Write(q.Encode()); err != nil {
 		return "", err
 	}
 	buf := make([]byte, 1024)
