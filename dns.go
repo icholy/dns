@@ -9,6 +9,8 @@ import (
 	"math"
 	"math/rand"
 	"net"
+
+	"github.com/sanity-io/litter"
 )
 
 type Header struct {
@@ -50,7 +52,7 @@ type Question struct {
 
 func (q Question) Encode() []byte {
 	var buf bytes.Buffer
-	_, _ = buf.Write(EncodeQueryName(q.Name))
+	_, _ = buf.Write(EncodeName(q.Name))
 	_ = binary.Write(&buf, binary.BigEndian, struct {
 		Type  Type
 		Class Class
@@ -62,7 +64,7 @@ func (q Question) Encode() []byte {
 }
 
 func (q *Question) Decode(r *bufio.Reader) error {
-	name, err := DecodeQueryName(r)
+	name, err := DecodeName(r)
 	if err != nil {
 		return err
 	}
@@ -79,7 +81,7 @@ func (q *Question) Decode(r *bufio.Reader) error {
 	return nil
 }
 
-func EncodeQueryName(name []byte) []byte {
+func EncodeName(name []byte) []byte {
 	var b []byte
 	for _, part := range bytes.Split(name, []byte(".")) {
 		b = append(b, byte(len(part)))
@@ -89,7 +91,7 @@ func EncodeQueryName(name []byte) []byte {
 	return b
 }
 
-func DecodeQueryName(r *bufio.Reader) ([]byte, error) {
+func DecodeName(r *bufio.Reader) ([]byte, error) {
 	part := make([]byte, 255)
 	var name []byte
 	for {
@@ -154,24 +156,11 @@ func SendQuery(addr string, q Query) (string, error) {
 		return "", err
 	}
 	r := bufio.NewReader(conn)
-	// read the header
-	var h Header
-	if err := h.Decode(r); err != nil {
+	var p Packet
+	if err := p.Decode(r); err != nil {
 		return "", err
 	}
-	fmt.Printf("%#v\n", h)
-	// read the question
-	var q2 Question
-	if err := q2.Decode(r); err != nil {
-		return "", err
-	}
-	fmt.Printf("%#v\n", q2)
-	var rec Record
-	if err := rec.Decode(r); err != nil {
-		return "", err
-	}
-	fmt.Printf("%#v\n", rec)
-	fmt.Printf("Name: %s, Data: %X\n", rec.Name, rec.Data)
+	litter.Dump(p)
 	return "", nil
 }
 
@@ -184,7 +173,7 @@ type Record struct {
 }
 
 func (r *Record) Decode(br *bufio.Reader) error {
-	name, err := DecodeQueryName(br)
+	name, err := DecodeName(br)
 	if err != nil {
 		return err
 	}
@@ -204,6 +193,49 @@ func (r *Record) Decode(br *bufio.Reader) error {
 	r.Data = make([]byte, aux.DataLen)
 	if _, err := io.ReadFull(br, r.Data); err != nil {
 		return err
+	}
+	return nil
+}
+
+type Packet struct {
+	Header      Header
+	Questions   []Question
+	Answers     []Record
+	Authorities []Record
+	Additionals []Record
+}
+
+func (p *Packet) Decode(r *bufio.Reader) error {
+	if err := p.Header.Decode(r); err != nil {
+		return err
+	}
+	for i := uint16(0); i < p.Header.NumQuestions; i++ {
+		var q Question
+		if err := q.Decode(r); err != nil {
+			return err
+		}
+		p.Questions = append(p.Questions, q)
+	}
+	for i := uint16(0); i < p.Header.NumAnswers; i++ {
+		var rec Record
+		if err := rec.Decode(r); err != nil {
+			return err
+		}
+		p.Answers = append(p.Answers, rec)
+	}
+	for i := uint16(0); i < p.Header.NumAuthorities; i++ {
+		var rec Record
+		if err := rec.Decode(r); err != nil {
+			return err
+		}
+		p.Authorities = append(p.Authorities, rec)
+	}
+	for i := uint16(0); i < p.Header.NumAdditionals; i++ {
+		var rec Record
+		if err := rec.Decode(r); err != nil {
+			return err
+		}
+		p.Additionals = append(p.Additionals, rec)
 	}
 	return nil
 }
