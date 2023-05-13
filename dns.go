@@ -163,6 +163,31 @@ type Record struct {
 	Name  []byte
 	Type  Type
 	Class Class
-	TTL   uint16
+	TTL   uint32
 	Data  []byte
+}
+
+func (r *Record) Decode(br *bufio.Reader) error {
+	name, err := DecodeQueryName(br)
+	if err != nil {
+		return err
+	}
+	var aux struct {
+		Type    Type
+		Class   Class
+		TTL     uint32
+		DataLen uint16
+	}
+	if err := binary.Read(br, binary.BigEndian, &aux); err != nil {
+		return err
+	}
+	r.Name = name
+	r.Type = aux.Type
+	r.Class = aux.Class
+	r.TTL = aux.TTL
+	r.Data = make([]byte, aux.DataLen)
+	if _, err := io.ReadFull(br, r.Data); err != nil {
+		return err
+	}
+	return nil
 }
