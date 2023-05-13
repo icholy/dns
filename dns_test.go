@@ -6,7 +6,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestHeaderWrite(t *testing.T) {
+func TestHeaderEncode(t *testing.T) {
 	h := Header{
 		ID:           0x1314,
 		NumQuestions: 1,
@@ -19,7 +19,7 @@ func TestEncodeQueryName(t *testing.T) {
 	assert.DeepEqual(t, string(name), "\x06google\x03com\x00")
 }
 
-func TestQueryWrite(t *testing.T) {
+func TestQueryEncode(t *testing.T) {
 	q := Query{
 		ID:     17611,
 		Domain: "example.com",
