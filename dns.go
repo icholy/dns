@@ -115,3 +115,11 @@ func SendQuery(addr string, q Query) (string, error) {
 	fmt.Printf("len=%d %s", n, buf[:n])
 	return "", nil
 }
+
+type Record struct {
+	Name  []byte
+	Type  Type
+	Class Class
+	TTL   uint16
+	Data  []byte
+}
