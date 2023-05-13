@@ -45,7 +45,6 @@ func TestQueryEncode(t *testing.T) {
 }
 
 func TestSendQuery(t *testing.T) {
-	t.Skip()
 	q := Query{Domain: "google.com", Type: TypeA}
 	ip, err := SendQuery("8.8.8.8:53", q)
 	assert.NilError(t, err)

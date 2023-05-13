@@ -150,12 +150,25 @@ func SendQuery(addr string, q Query) (string, error) {
 	if _, err := conn.Write(q.Encode()); err != nil {
 		return "", err
 	}
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
+	r := bufio.NewReader(conn)
+	// read the header
+	var h Header
+	if err := h.Decode(r); err != nil {
 		return "", err
 	}
-	fmt.Printf("len=%d %s", n, buf[:n])
+	fmt.Printf("%#v\n", h)
+	// read the question
+	var q2 Question
+	if err := q2.Decode(r); err != nil {
+		return "", err
+	}
+	fmt.Printf("%#v\n", q2)
+	var rec Record
+	if err := rec.Decode(r); err != nil {
+		return "", err
+	}
+	fmt.Printf("%#v\n", rec)
+	fmt.Printf("Name: %s, Data: %X\n", rec.Name, rec.Data)
 	return "", nil
 }
 
