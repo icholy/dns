@@ -53,7 +53,7 @@ func TestSendQuery(t *testing.T) {
 }
 
 func TestLookupDomain(t *testing.T) {
-	ip, err := LookupDomain("8.8.8.8:53", "google.com")
+	ip, err := LookupDomain("8.8.8.8:53", "choly.ca")
 	assert.NilError(t, err)
 	t.Logf("IP: %s", ip)
 }
