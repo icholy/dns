@@ -24,7 +24,7 @@ func TestEncodeQueryName(t *testing.T) {
 
 func TestQueryWrite(t *testing.T) {
 	q := Query{
-		ID:     555,
+		ID:     17611,
 		Domain: "example.com",
 		Type:   TypeA,
 	}
