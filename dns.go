@@ -95,7 +95,17 @@ func DecodeCompressedName(r *bufio.Reader, rs io.ReadSeeker, length byte) ([]byt
 	if rs == nil {
 		return nil, fmt.Errorf("cannot decompress without seeker")
 	}
-	return nil, fmt.Errorf("compression not implemented")
+	// find the pointer
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	pointer := binary.BigEndian.Uint16([]byte{length & 0b0011_1111, b})
+	if _, err := rs.Seek(int64(pointer), 0); err != nil {
+		return nil, err
+	}
+	// decode the name
+	return DecodeName(bufio.NewReader(rs), nil)
 }
 
 func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
