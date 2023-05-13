@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -22,6 +23,10 @@ func (h Header) Encode() []byte {
 	var buf bytes.Buffer
 	_ = binary.Write(&buf, binary.BigEndian, h)
 	return buf.Bytes()
+}
+
+func (h *Header) Decode(r *bufio.Reader) error {
+	return binary.Read(r, binary.BigEndian, h)
 }
 
 type Class uint16

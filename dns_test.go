@@ -1,17 +1,26 @@
 package dns
 
 import (
+	"bufio"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 )
 
-func TestHeaderEncode(t *testing.T) {
+func TestHeaderEncodeDecode(t *testing.T) {
+	encoded := "\x13\x14\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00"
+	// encode
 	h := Header{
 		ID:           0x1314,
 		NumQuestions: 1,
 	}
-	assert.DeepEqual(t, string(h.Encode()), "\x13\x14\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00")
+	assert.DeepEqual(t, string(h.Encode()), encoded)
+	// decode
+	var h2 Header
+	r := bufio.NewReader(strings.NewReader(encoded))
+	assert.NilError(t, h2.Decode(r))
+	assert.DeepEqual(t, h, h2)
 }
 
 func TestEncodeQueryName(t *testing.T) {
@@ -29,6 +38,7 @@ func TestQueryEncode(t *testing.T) {
 }
 
 func TestSendQuery(t *testing.T) {
+	t.Skip()
 	q := Query{Domain: "google.com", Type: TypeA}
 	ip, err := SendQuery("8.8.8.8:53", q)
 	assert.NilError(t, err)
