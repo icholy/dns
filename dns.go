@@ -127,7 +127,7 @@ func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
 			if len(name) > 0 {
 				name = append(name, '.')
 			}
-			name = append(name, part[:b]...)
+			name = append(name, part...)
 			break
 		}
 		if _, err := io.ReadFull(r, part[:b]); err != nil {
