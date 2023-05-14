@@ -113,7 +113,7 @@ func DecodeCompressedName(r *bufio.Reader, rs io.ReadSeeker, length byte) ([]byt
 		return nil, err
 	}
 	// decode the name
-	return DecodeName(bufio.NewReader(rs), nil)
+	return DecodeName(bufio.NewReader(rs), rs)
 }
 
 func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
@@ -213,7 +213,7 @@ func (r Record) String() string {
 	if r.Type == TypeA {
 		return fmt.Sprintf("%s %d %d %s", r.Name, r.Type, r.TTL, ParseIP(r.Data))
 	}
-	return fmt.Sprintf("%s %d %d %x", r.Name, r.Type, r.TTL, r.Data)
+	return fmt.Sprintf("%s %d %d %s", r.Name, r.Type, r.TTL, r.Data)
 }
 
 func (r *Record) Decode(br *bufio.Reader, rs io.ReadSeeker) error {
@@ -237,6 +237,13 @@ func (r *Record) Decode(br *bufio.Reader, rs io.ReadSeeker) error {
 	r.Data = make([]byte, aux.DataLen)
 	if _, err := io.ReadFull(br, r.Data); err != nil {
 		return err
+	}
+	if r.Type == TypeNS {
+		name, err := DecodeName(bufio.NewReader(bytes.NewReader(r.Data)), rs)
+		if err != nil {
+			return err
+		}
+		r.Data = name
 	}
 	return nil
 }
