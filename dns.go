@@ -291,8 +291,8 @@ func (p *Packet) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
 	return nil
 }
 
-func (pkt Packet) Answer(typ Type) (Record, bool) {
-	for _, r := range pkt.Answers {
+func FindRecord(recs []Record, typ Type) (Record, bool) {
+	for _, r := range recs {
 		if r.Type == typ {
 			return r, true
 		}
@@ -314,7 +314,7 @@ func LookupDomain(addr, domain string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	a, ok := pkt.Answer(TypeA)
+	a, ok := FindRecord(pkt.Answers, TypeA)
 	if !ok {
 		return "", fmt.Errorf("no answers")
 	}
