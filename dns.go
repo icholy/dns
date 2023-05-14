@@ -366,7 +366,7 @@ func Resolve(domain string, typ Type) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("no answers, additionals, or authorities")
 		}
-		host, err := Resolve(ParseIP(auth.Data), TypeA)
+		host, err := Resolve(string(auth.Data), TypeA)
 		if err != nil {
 			return "", err
 		}
