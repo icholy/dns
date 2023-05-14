@@ -36,16 +36,12 @@ func TestEncodeDecodeQueryName(t *testing.T) {
 }
 
 func TestQueryEncode(t *testing.T) {
-	q := Query{
-		ID:     17611,
-		Domain: "example.com",
-		Type:   TypeA,
-	}
+	q := BuildQuery(17611, "example.com", TypeA, FlagRecusion)
 	assert.DeepEqual(t, string(q.Encode()), "D\xcb\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00\x07example\x03com\x00\x00\x01\x00\x01")
 }
 
 func TestSendQuery(t *testing.T) {
-	q := Query{Domain: "google.com", Type: TypeA}
+	q := BuildQuery(0, "google.com", TypeA, FlagRecusion)
 	pkt, err := SendQuery("8.8.8.8:53", q)
 	assert.NilError(t, err)
 	t.Logf("Packet: %#v", pkt)

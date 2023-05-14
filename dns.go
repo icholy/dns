@@ -15,7 +15,7 @@ import (
 
 type Header struct {
 	ID             uint16
-	Flags          uint16
+	Flags          Flag
 	NumQuestions   uint16
 	NumAnswers     uint16
 	NumAuthorities uint16
@@ -31,6 +31,12 @@ func (h Header) Encode() []byte {
 func (h *Header) Decode(r *bufio.Reader) error {
 	return binary.Read(r, binary.BigEndian, h)
 }
+
+type Flag uint16
+
+const (
+	FlagRecusion = 1 << 8
+)
 
 type Class uint16
 
@@ -142,31 +148,35 @@ func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
 }
 
 type Query struct {
-	ID     uint16
-	Domain string
-	Type   Type
+	Header   Header
+	Question Question
+}
+
+func BuildQuery(id uint16, domain string, typ Type, flags Flag) Query {
+	return Query{
+		Header: Header{
+			ID:           id,
+			NumQuestions: 1,
+			Flags:        flags,
+		},
+		Question: Question{
+			Name:  []byte(domain),
+			Type:  typ,
+			Class: ClassIN,
+		},
+	}
 }
 
 func (q Query) Encode() []byte {
 	var buf bytes.Buffer
-	h := Header{
-		ID:           q.ID,
-		NumQuestions: 1,
-		Flags:        1 << 8, // RECURSION_DESIRED
-	}
-	buf.Write(h.Encode())
-	q2 := Question{
-		Name:  []byte(q.Domain),
-		Type:  q.Type,
-		Class: ClassIN,
-	}
-	buf.Write(q2.Encode())
+	buf.Write(q.Header.Encode())
+	buf.Write(q.Question.Encode())
 	return buf.Bytes()
 }
 
 func SendQuery(addr string, q Query) (*Packet, error) {
-	if q.ID == 0 {
-		q.ID = uint16(rand.Intn(math.MaxUint16))
+	if q.Header.ID == 0 {
+		q.Header.ID = uint16(rand.Intn(math.MaxUint16))
 	}
 	remote, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
@@ -274,10 +284,8 @@ func ParseIP(data []byte) string {
 }
 
 func LookupDomain(addr, domain string) (string, error) {
-	pkt, err := SendQuery(addr, Query{
-		Domain: domain,
-		Type:   TypeA,
-	})
+	q := BuildQuery(0, domain, TypeA, FlagRecusion)
+	pkt, err := SendQuery(addr, q)
 	if err != nil {
 		return "", err
 	}
