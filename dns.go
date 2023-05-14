@@ -210,6 +210,9 @@ type Record struct {
 }
 
 func (r Record) String() string {
+	if r.Type == TypeA {
+		return fmt.Sprintf("%s %d %d %s", r.Name, r.Type, r.TTL, ParseIP(r.Data))
+	}
 	return fmt.Sprintf("%s %d %d %x", r.Name, r.Type, r.TTL, r.Data)
 }
 
