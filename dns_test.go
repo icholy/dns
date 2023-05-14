@@ -54,7 +54,7 @@ func TestLookupDomain(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	ip, err := Resolve("198.41.0.4:53", "google.com")
+	ip, err := Resolve("twitter.com", TypeA)
 	assert.NilError(t, err)
 	t.Logf("IP: %s", ip)
 }

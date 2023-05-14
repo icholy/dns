@@ -345,21 +345,31 @@ func (b *SeekBuffer) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func Resolve(addr, domain string) (string, error) {
+func Resolve(domain string, typ Type) (string, error) {
+	addr := "198.41.0.4:53"
 	for {
-		q := BuildQuery(0, domain, TypeA, 0)
-		fmt.Printf("Query: %s: %#v\n", addr, q)
+		fmt.Printf("Querying %s for %s\n", addr, domain)
+		q := BuildQuery(0, domain, typ, 0)
 		pkt, err := SendQuery(addr, q)
 		if err != nil {
 			return "", err
 		}
-		if a, ok := FindRecord(pkt.Answers, TypeA); ok {
+		if a, ok := FindRecord(pkt.Answers, typ); ok {
 			return ParseIP(a.Data), nil
 		}
-		ns, ok := FindRecord(pkt.Additionals, TypeA)
-		if !ok {
-			return "", fmt.Errorf("failed to resolve")
+		ns, ok := FindRecord(pkt.Additionals, typ)
+		if ok {
+			addr = net.JoinHostPort(ParseIP(ns.Data), "53")
+			continue
 		}
-		addr = net.JoinHostPort(ParseIP(ns.Data), "53")
+		auth, ok := FindRecord(pkt.Authorities, TypeNS)
+		if !ok {
+			return "", fmt.Errorf("no answers, additionals, or authorities")
+		}
+		host, err := Resolve(ParseIP(auth.Data), TypeA)
+		if err != nil {
+			return "", err
+		}
+		addr = net.JoinHostPort(host, "53")
 	}
 }
