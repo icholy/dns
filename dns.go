@@ -291,6 +291,15 @@ func (p *Packet) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
 	return nil
 }
 
+func (pkt Packet) Answer(typ Type) (Record, bool) {
+	for _, r := range pkt.Answers {
+		if r.Type == typ {
+			return r, true
+		}
+	}
+	return Record{}, false
+}
+
 func ParseIP(data []byte) string {
 	ip := make([]string, len(data))
 	for i, b := range data {
@@ -305,10 +314,11 @@ func LookupDomain(addr, domain string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(pkt.Answers) == 0 {
+	a, ok := pkt.Answer(TypeA)
+	if !ok {
 		return "", fmt.Errorf("no answers")
 	}
-	return ParseIP(pkt.Answers[0].Data), nil
+	return ParseIP(a.Data), nil
 }
 
 type SeekBuffer struct {
