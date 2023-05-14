@@ -48,6 +48,7 @@ type Type uint16
 
 const (
 	TypeA   = Type(1)
+	TypeNS  = Type(2)
 	TypeTXT = Type(16)
 )
 
