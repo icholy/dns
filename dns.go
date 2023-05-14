@@ -344,3 +344,22 @@ func (b *SeekBuffer) Write(data []byte) (int, error) {
 	b.data = append(b.data, data...)
 	return len(data), nil
 }
+
+func Resolve(addr, domain string) (string, error) {
+	for {
+		q := BuildQuery(0, domain, TypeA, 0)
+		fmt.Printf("Query: %s: %#v\n", addr, q)
+		pkt, err := SendQuery(addr, q)
+		if err != nil {
+			return "", err
+		}
+		if a, ok := FindRecord(pkt.Answers, TypeA); ok {
+			return ParseIP(a.Data), nil
+		}
+		ns, ok := FindRecord(pkt.Additionals, TypeA)
+		if !ok {
+			return "", fmt.Errorf("failed to resolve")
+		}
+		addr = net.JoinHostPort(ParseIP(ns.Data), "53")
+	}
+}

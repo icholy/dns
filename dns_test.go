@@ -52,3 +52,9 @@ func TestLookupDomain(t *testing.T) {
 	assert.NilError(t, err)
 	t.Logf("IP: %s", ip)
 }
+
+func TestResolve(t *testing.T) {
+	ip, err := Resolve("198.41.0.4:53", "google.com")
+	assert.NilError(t, err)
+	t.Logf("IP: %s", ip)
+}
