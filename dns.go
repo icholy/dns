@@ -208,6 +208,10 @@ type Record struct {
 	Data  []byte
 }
 
+func (r Record) String() string {
+	return fmt.Sprintf("%s %d %d %x", r.Name, r.Type, r.TTL, r.Data)
+}
+
 func (r *Record) Decode(br *bufio.Reader, rs io.ReadSeeker) error {
 	name, err := DecodeName(br, rs)
 	if err != nil {
