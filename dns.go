@@ -154,6 +154,13 @@ type Query struct {
 	Question Question
 }
 
+func (q *Query) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
+	if err := q.Header.Decode(r); err != nil {
+		return err
+	}
+	return q.Question.Decode(r, rs)
+}
+
 func BuildQuery(id uint16, domain string, typ Type, flags Flag) Query {
 	return Query{
 		Header: Header{
@@ -207,6 +214,28 @@ type Record struct {
 	Class Class
 	TTL   uint32
 	Data  []byte
+}
+
+func (r Record) Encode() []byte {
+	var buf bytes.Buffer
+	buf.Write(EncodeName(r.Name))
+	data := r.Data
+	if r.Type == TypeNS {
+		data = EncodeName(data)
+	}
+	binary.Write(&buf, binary.BigEndian, struct {
+		Type    Type
+		Class   Class
+		TTL     uint32
+		DataLen uint16
+	}{
+		Type:    r.Type,
+		Class:   r.Class,
+		TTL:     r.TTL,
+		DataLen: uint16(len(data)),
+	})
+	buf.Write(data)
+	return buf.Bytes()
 }
 
 func (r Record) String() string {
@@ -289,6 +318,24 @@ func (p *Packet) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
 		p.Additionals = append(p.Additionals, rec)
 	}
 	return nil
+}
+
+func (p *Packet) Encode() []byte {
+	var buf bytes.Buffer
+	buf.Write(p.Header.Encode())
+	for _, q := range p.Questions {
+		buf.Write(q.Encode())
+	}
+	for _, r := range p.Answers {
+		buf.Write(r.Encode())
+	}
+	for _, r := range p.Authorities {
+		buf.Write(r.Encode())
+	}
+	for _, r := range p.Additionals {
+		buf.Write(r.Encode())
+	}
+	return buf.Bytes()
 }
 
 func FindRecord(recs []Record, typ Type) (Record, bool) {
@@ -380,5 +427,33 @@ func Resolve(domain string, typ Type) (*Packet, error) {
 			return nil, err
 		}
 		addr = net.JoinHostPort(host, "53")
+	}
+}
+
+func Serve(conn *net.UDPConn) error {
+	data := make([]byte, 512)
+	for {
+		n, addr, err := conn.ReadFromUDP(data)
+		if err != nil {
+			fmt.Printf("failed to read from connection: %v\n", err)
+		}
+		var q Query
+		buf := SeekBuffer{data: data[:n]}
+		r := bufio.NewReader(bytes.NewReader(data[:n]))
+		if err := q.Decode(r, &buf); err != nil {
+			fmt.Printf("failed to decode query: %v\n", err)
+			continue
+		}
+		fmt.Printf("Query: %#v\n", q)
+		pkt, err := Resolve(string(q.Question.Name), q.Question.Type)
+		if err != nil {
+			fmt.Printf("failed to resolve: %v\n", err)
+			continue
+		}
+		fmt.Printf("Packet: %#v\n", pkt)
+		pkt.Header.ID = q.Header.ID
+		if _, err := conn.WriteToUDP(pkt.Encode(), addr); err != nil {
+			fmt.Printf("failed to write packet: %v", err)
+		}
 	}
 }

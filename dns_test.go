@@ -3,6 +3,7 @@ package dns
 import (
 	"bufio"
 	"bytes"
+	"net"
 	"strings"
 	"testing"
 
@@ -57,4 +58,14 @@ func TestResolve(t *testing.T) {
 	ip, err := ResolveDomain("twitter.com", TypeA)
 	assert.NilError(t, err)
 	t.Logf("IP: %s", ip)
+}
+
+func TestServe(t *testing.T) {
+	t.Skip()
+	addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:9000")
+	assert.NilError(t, err)
+	conn, err := net.ListenUDP("udp", addr)
+	assert.NilError(t, err)
+	defer conn.Close()
+	assert.NilError(t, Serve(conn))
 }
