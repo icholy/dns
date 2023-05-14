@@ -54,7 +54,7 @@ func TestLookupDomain(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	ip, err := Resolve("twitter.com", TypeA)
+	ip, err := ResolveDomain("twitter.com", TypeA)
 	assert.NilError(t, err)
 	t.Logf("IP: %s", ip)
 }

@@ -345,17 +345,26 @@ func (b *SeekBuffer) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func Resolve(domain string, typ Type) (string, error) {
+func ResolveDomain(domain string, typ Type) (string, error) {
+	pkt, err := Resolve(domain, typ)
+	if err != nil {
+		return "", err
+	}
+	a, _ := FindRecord(pkt.Answers, typ)
+	return ParseIP(a.Data), nil
+}
+
+func Resolve(domain string, typ Type) (*Packet, error) {
 	addr := "198.41.0.4:53"
 	for {
 		fmt.Printf("Querying %s for %s\n", addr, domain)
 		q := BuildQuery(0, domain, typ, 0)
 		pkt, err := SendQuery(addr, q)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if a, ok := FindRecord(pkt.Answers, typ); ok {
-			return ParseIP(a.Data), nil
+		if _, ok := FindRecord(pkt.Answers, typ); ok {
+			return pkt, nil
 		}
 		ns, ok := FindRecord(pkt.Additionals, typ)
 		if ok {
@@ -364,11 +373,11 @@ func Resolve(domain string, typ Type) (string, error) {
 		}
 		auth, ok := FindRecord(pkt.Authorities, TypeNS)
 		if !ok {
-			return "", fmt.Errorf("no answers, additionals, or authorities")
+			return nil, fmt.Errorf("no answers, additionals, or authorities")
 		}
-		host, err := Resolve(string(auth.Data), TypeA)
+		host, err := ResolveDomain(string(auth.Data), TypeA)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		addr = net.JoinHostPort(host, "53")
 	}
