@@ -47,7 +47,8 @@ const (
 type Type uint16
 
 const (
-	TypeA = Type(1)
+	TypeA   = Type(1)
+	TypeTXT = Type(16)
 )
 
 type Question struct {
