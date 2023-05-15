@@ -434,6 +434,7 @@ func Serve(conn *net.UDPConn) error {
 		fmt.Printf("Query: %#v\n", q)
 		if len(q.Questions) != 1 {
 			fmt.Printf("only 1 question allowed, got %d", len(q.Questions))
+			continue
 		}
 		pkt, err := Resolve(q.Questions[0])
 		if err != nil {
