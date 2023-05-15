@@ -149,41 +149,24 @@ func DecodeName(r *bufio.Reader, rs io.ReadSeeker) ([]byte, error) {
 	return name, nil
 }
 
-type Query struct {
-	Header   Header
-	Question Question
-}
-
-func (q *Query) Decode(r *bufio.Reader, rs io.ReadSeeker) error {
-	if err := q.Header.Decode(r); err != nil {
-		return err
-	}
-	return q.Question.Decode(r, rs)
-}
-
-func BuildQuery(id uint16, domain string, typ Type, flags Flag) Query {
-	return Query{
+func BuildQuery(id uint16, domain string, typ Type, flags Flag) *Packet {
+	return &Packet{
 		Header: Header{
 			ID:           id,
 			NumQuestions: 1,
 			Flags:        flags,
 		},
-		Question: Question{
-			Name:  []byte(domain),
-			Type:  typ,
-			Class: ClassIN,
+		Questions: []Question{
+			{
+				Name:  []byte(domain),
+				Type:  typ,
+				Class: ClassIN,
+			},
 		},
 	}
 }
 
-func (q Query) Encode() []byte {
-	var buf bytes.Buffer
-	buf.Write(q.Header.Encode())
-	buf.Write(q.Question.Encode())
-	return buf.Bytes()
-}
-
-func SendQuery(addr string, q Query) (*Packet, error) {
+func SendQuery(addr string, q *Packet) (*Packet, error) {
 	if q.Header.ID == 0 {
 		q.Header.ID = uint16(rand.Intn(math.MaxUint16))
 	}
@@ -393,7 +376,11 @@ func (b *SeekBuffer) Write(data []byte) (int, error) {
 }
 
 func ResolveDomain(domain string, typ Type) (string, error) {
-	pkt, err := Resolve(domain, typ)
+	pkt, err := Resolve(Question{
+		Name:  []byte(domain),
+		Type:  typ,
+		Class: ClassIN,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -401,26 +388,26 @@ func ResolveDomain(domain string, typ Type) (string, error) {
 	return ParseIP(a.Data), nil
 }
 
-func Resolve(domain string, typ Type) (*Packet, error) {
+func Resolve(question Question) (*Packet, error) {
 	addr := "198.41.0.4:53"
 	for {
-		fmt.Printf("Querying %s for %s\n", addr, domain)
-		q := BuildQuery(0, domain, typ, 0)
+		fmt.Printf("Querying %s for %s\n", addr, question.Name)
+		q := BuildQuery(0, string(question.Name), question.Type, 0)
 		pkt, err := SendQuery(addr, q)
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := FindRecord(pkt.Answers, typ); ok {
+		if _, ok := FindRecord(pkt.Answers, question.Type); ok {
 			return pkt, nil
 		}
-		ns, ok := FindRecord(pkt.Additionals, typ)
+		ns, ok := FindRecord(pkt.Additionals, TypeA)
 		if ok {
 			addr = net.JoinHostPort(ParseIP(ns.Data), "53")
 			continue
 		}
 		auth, ok := FindRecord(pkt.Authorities, TypeNS)
 		if !ok {
-			return nil, fmt.Errorf("no answers, additionals, or authorities")
+			return pkt, nil
 		}
 		host, err := ResolveDomain(string(auth.Data), TypeA)
 		if err != nil {
@@ -437,7 +424,7 @@ func Serve(conn *net.UDPConn) error {
 		if err != nil {
 			fmt.Printf("failed to read from connection: %v\n", err)
 		}
-		var q Query
+		var q Packet
 		buf := SeekBuffer{data: data[:n]}
 		r := bufio.NewReader(bytes.NewReader(data[:n]))
 		if err := q.Decode(r, &buf); err != nil {
@@ -445,7 +432,10 @@ func Serve(conn *net.UDPConn) error {
 			continue
 		}
 		fmt.Printf("Query: %#v\n", q)
-		pkt, err := Resolve(string(q.Question.Name), q.Question.Type)
+		if len(q.Questions) != 1 {
+			fmt.Printf("only 1 question allowed, got %d", len(q.Questions))
+		}
+		pkt, err := Resolve(q.Questions[0])
 		if err != nil {
 			fmt.Printf("failed to resolve: %v\n", err)
 			continue
